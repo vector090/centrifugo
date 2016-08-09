@@ -397,6 +397,19 @@ func (c *client) handleCommands(commands []clientCommand) error {
 	return err
 }
 
+var cmds map[string]ClientExecCmd = make(map[string]ClientExecCmd)
+
+func RegisterCmd(method string, execCmd ClientExecCmd) {
+	cmds[method] = execCmd
+}
+
+func init() {
+	RegisterCmd("connect", new(connectClientCommand))
+	//		RegisterCmd("refresh", new(refreshClientCommand))
+	// ...
+	// TODO register all other built-in cmds.
+}
+
 // handleCmd dispatches clientCommand into correct command handler
 func (c *client) handleCmd(command clientCommand) (response, error) {
 
@@ -410,66 +423,75 @@ func (c *client) handleCmd(command clientCommand) (response, error) {
 		return nil, ErrUnauthorized
 	}
 
-	switch method {
-	case "connect":
-		var cmd connectClientCommand
-		err = json.Unmarshal(params, &cmd)
-		if err != nil {
-			return nil, ErrInvalidMessage
-		}
-		resp, err = c.connectCmd(&cmd)
-	case "refresh":
-		var cmd refreshClientCommand
-		err = json.Unmarshal(params, &cmd)
-		if err != nil {
-			return nil, ErrInvalidMessage
-		}
-		resp, err = c.refreshCmd(&cmd)
-	case "subscribe":
-		var cmd subscribeClientCommand
-		err = json.Unmarshal(params, &cmd)
-		if err != nil {
-			return nil, ErrInvalidMessage
-		}
-		resp, err = c.subscribeCmd(&cmd)
-	case "unsubscribe":
-		var cmd unsubscribeClientCommand
-		err = json.Unmarshal(params, &cmd)
-		if err != nil {
-			return nil, ErrInvalidMessage
-		}
-		resp, err = c.unsubscribeCmd(&cmd)
-	case "publish":
-		var cmd publishClientCommand
-		err = json.Unmarshal(params, &cmd)
-		if err != nil {
-			return nil, ErrInvalidMessage
-		}
-		resp, err = c.publishCmd(&cmd)
-	case "ping":
-		var cmd pingClientCommand
-		err = json.Unmarshal(params, &cmd)
-		if err != nil {
-			return nil, ErrInvalidMessage
-		}
-		resp, err = c.pingCmd(&cmd)
-	case "presence":
-		var cmd presenceClientCommand
-		err = json.Unmarshal(params, &cmd)
-		if err != nil {
-			return nil, ErrInvalidMessage
-		}
-		resp, err = c.presenceCmd(&cmd)
-	case "history":
-		var cmd historyClientCommand
-		err = json.Unmarshal(params, &cmd)
-		if err != nil {
-			return nil, ErrInvalidMessage
-		}
-		resp, err = c.historyCmd(&cmd)
-	default:
+	var execCmd ClientExecCmd
+	if execCmd = cmds[method]; nil == execCmd {
 		return nil, ErrMethodNotFound
 	}
+
+	resp, err = execCmd.Exec(c, params)
+
+	// TODO: --> del
+	//	switch method {
+	//	case "connect":
+	//		var cmd connectClientCommand
+	//		err = json.Unmarshal(params, &cmd)
+	//		if err != nil {
+	//			return nil, ErrInvalidMessage
+	//		}
+	//		resp, err = c.connectCmd(&cmd)
+	//	case "refresh":
+	//		var cmd refreshClientCommand
+	//		err = json.Unmarshal(params, &cmd)
+	//		if err != nil {
+	//			return nil, ErrInvalidMessage
+	//		}
+	//		resp, err = c.refreshCmd(&cmd)
+	//	case "subscribe":
+	//		var cmd subscribeClientCommand
+	//		err = json.Unmarshal(params, &cmd)
+	//		if err != nil {
+	//			return nil, ErrInvalidMessage
+	//		}
+	//		resp, err = c.subscribeCmd(&cmd)
+	//	case "unsubscribe":
+	//		var cmd unsubscribeClientCommand
+	//		err = json.Unmarshal(params, &cmd)
+	//		if err != nil {
+	//			return nil, ErrInvalidMessage
+	//		}
+	//		resp, err = c.unsubscribeCmd(&cmd)
+	//	case "publish":
+	//		var cmd publishClientCommand
+	//		err = json.Unmarshal(params, &cmd)
+	//		if err != nil {
+	//			return nil, ErrInvalidMessage
+	//		}
+	//		resp, err = c.publishCmd(&cmd)
+	//	case "ping":
+	//		var cmd pingClientCommand
+	//		err = json.Unmarshal(params, &cmd)
+	//		if err != nil {
+	//			return nil, ErrInvalidMessage
+	//		}
+	//		resp, err = c.pingCmd(&cmd)
+	//	case "presence":
+	//		var cmd presenceClientCommand
+	//		err = json.Unmarshal(params, &cmd)
+	//		if err != nil {
+	//			return nil, ErrInvalidMessage
+	//		}
+	//		resp, err = c.presenceCmd(&cmd)
+	//	case "history":
+	//		var cmd historyClientCommand
+	//		err = json.Unmarshal(params, &cmd)
+	//		if err != nil {
+	//			return nil, ErrInvalidMessage
+	//		}
+	//		resp, err = c.historyCmd(&cmd)
+	//	default:
+	//		return nil, ErrMethodNotFound
+	//	}
+	// <-- del
 	if err != nil {
 		return nil, err
 	}

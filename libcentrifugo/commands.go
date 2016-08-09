@@ -15,6 +15,10 @@ type (
 	MessageID string
 )
 
+type ClientExecCmd interface {
+	Exec(c *client, params json.RawMessage) (response, error)
+}
+
 type clientCommand struct {
 	UID    string          `json:"uid"`
 	Method string          `json:"method"`
@@ -38,6 +42,16 @@ type connectClientCommand struct {
 	Token     string `json:"token"`
 }
 
+func (cmd *connectClientCommand) Exec(c *client, params json.RawMessage) (response, error) {
+	// migrated from client.go:handleCmd
+	err := json.Unmarshal(params, cmd)
+	if err != nil {
+		return nil, ErrInvalidMessage
+	}
+	resp, err := c.connectCmd(cmd)
+	return resp, err
+}
+
 // refreshClientCommand is used to prolong connection lifetime when connection check
 // mechanism is enabled. It can only be sent by client after successfull connect.
 type refreshClientCommand struct {
@@ -45,6 +59,11 @@ type refreshClientCommand struct {
 	Timestamp string `json:"timestamp"`
 	Info      string `json:"info"`
 	Token     string `json:"token"`
+}
+
+func (cmd *refreshClientCommand) Exec(c *client, params json.RawMessage) (response, error) {
+	// TODO migrate from client.go:handleCmd
+	return nil, nil
 }
 
 // subscribeClientCommand is used to subscribe on channel.
